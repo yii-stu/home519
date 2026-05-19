@@ -48,24 +48,17 @@
       intensity="5">
     </a-light>
 
-    <a-entity mindar-image-target="targetIndex: 0">
+<a-entity mindar-image-target="targetIndex: 0">
 
-      <a-gltf-model
-        src="#AquariusModel"
-        position="0 0 0"
-        scale="0.1 0.1 0.1"
-        rotation="0 0 0">
-      </a-gltf-model>
+  <a-gltf-model
+    src="#AquariusModel"
+    position="0 0.2 0"
+    scale="1 1 1"
+    rotation="0 0 0"
+    touch-transform>
+  </a-gltf-model>
 
-    <a-plane
-       src="#AquariusModel"
-       width="1.2"
-       height="0.7"
-       position="0 0 0"
-       touch-transform>
-      </a-plane>  
-
-    </a-entity>
+</a-entity>
 
   </a-scene>
 <!-- 自訂A-Frame 組件：觸控縮放、旋轉、雙擊重設-->
