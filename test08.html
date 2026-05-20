@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Test WIND AR</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html,
+    body,
+    a-scene {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+
+  <a-scene
+    mindar-image="imageTargetSrc: Aquarius.mind; autoStart: true;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
+
+    <a-assets>
+      <a-asset-item
+        id="AquariusModel"
+        src="Aquarius.glb">
+      </a-asset-item>
+    </a-assets>
+
+    <a-camera look-controls="enabled: false"></a-camera>
+
+    <a-light
+      type="point"
+      intensity="5">
+    </a-light>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+
+    <a-entity
+      id="modelContainer"
+      gesture-handler
+      scale="0.1 0.1 0.1">
+
+    <a-gltf-model
+      src="#AquariusModel"
+      position="0 0 0"
+      rotation="0 0 90">
+    </a-gltf-model>
+
+    </a-entity>
+
+</a-entity>
+
+  </a-scene>
+<script>
+AFRAME.registerComponent('gesture-handler', {
+
+  init: function () {
+
+    const el = this.el;
+
+    // ===== 狀態 =====
+    this.isDragging = false;
+
+    this.previousX = 0;
+
+    this.scale = 1;
+
+    this.initialDistance = null;
+
+    // ===== 單指旋轉 =====
+    window.addEventListener('touchstart', (e) => {
+
+      if (e.touches.length === 1) {
+
+        this.isDragging = true;
+
+        this.previousX = e.touches[0].clientX;
+      }
+
+      // ===== 兩指縮放初始化 =====
+      if (e.touches.length === 2) {
+
+        const dx =
+          e.touches[0].clientX -
+          e.touches[1].clientX;
+
+        const dy =
+          e.touches[0].clientY -
+          e.touches[1].clientY;
+
+        this.initialDistance =
+          Math.sqrt(dx * dx + dy * dy);
+      }
+
+    });
+
+    // ===== 手指移動 =====
+    window.addEventListener('touchmove', (e) => {
+
+      // ---------- 單指旋轉 ----------
+      if (e.touches.length === 1 && this.isDragging) {
+
+        const currentX = e.touches[0].clientX;
+
+        const deltaX =
+          currentX - this.previousX;
+
+        // Y 軸旋轉
+        el.object3D.rotation.y += deltaX * 0.01;
+
+        this.previousX = currentX;
+      }
+
+      // ---------- 雙指縮放 ----------
+      if (
+        e.touches.length === 2 &&
+        this.initialDistance
+      ) {
+
+        const dx =
+          e.touches[0].clientX -
+          e.touches[1].clientX;
+
+        const dy =
+          e.touches[0].clientY -
+          e.touches[1].clientY;
+
+        const currentDistance =
+          Math.sqrt(dx * dx + dy * dy);
+
+        const scaleFactor =
+          currentDistance / this.initialDistance;
+
+        this.scale *= scaleFactor;
+
+        // 限制縮放範圍
+        this.scale =
+          Math.min(Math.max(this.scale, 0.3), 3);
+
+        el.object3D.scale.set(
+          this.scale,
+          this.scale,
+          this.scale
+        );
+
+        this.initialDistance =
+          currentDistance;
+      }
+
+    });
+
+    // ===== 手指離開 =====
+    window.addEventListener('touchend', () => {
+
+      this.isDragging = false;
+
+      this.initialDistance = null;
+
+    });
+
+  }
+
+});
+</script>
+</body>
+</html>
