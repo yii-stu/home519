@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Test WIND AR</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html,
+    body,
+    a-scene {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <a-scene
+    mindar-image="imageTargetSrc: Aquarius.mind; autoStart: true;"
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
+
+    <!-- 資源 -->
+    <a-assets>
+      <a-asset-item
+        id="AquariusModel"
+        src="Aquarius.glb">
+      </a-asset-item>
+    </a-assets>
+
+    <!-- 相機 -->
+    <a-camera look-controls="enabled: false"></a-camera>
+
+    <!-- 光源 -->
+    <a-light
+      type="ambient"
+      intensity="1.5">
+    </a-light>
+
+    <a-light
+      type="directional"
+      intensity="2"
+      position="2 4 2">
+    </a-light>
+
+    <!-- AR Target -->
+    <a-entity mindar-image-target="targetIndex: 0">
+
+      <!-- 可互動容器 -->
+      <a-entity
+        id="modelContainer"
+        gesture-handler
+        click-effect
+        scale="0.1 0.1 0.1">
+
+        <!-- 3D 模型 -->
+        <a-gltf-model
+          src="#AquariusModel"
+          position="0 0 0"
+          rotation="0 0 0">
+        </a-gltf-model>
+
+      </a-entity>
+
+    </a-entity>
+
+  </a-scene>
+
+  <!-- ================================= -->
+  <!-- 手勢控制 -->
+  <!-- ================================= -->
+
+  <script>
+
+    AFRAME.registerComponent('gesture-handler', {
+
+      init: function () {
+
+        const el = this.el;
+
+        // =====================
+        // 狀態
+        // =====================
+
+        this.isDragging = false;
+
+        this.previousX = 0;
+
+        this.scale =
+          el.object3D.scale.x;
+
+        this.defaultScale =
+          el.object3D.scale.x;
+
+        this.defaultRotation = 0;
+
+        this.initialDistance = null;
+
+        // =====================
+        // 慣性
+        // =====================
+
+        this.rotationVelocity = 0;
+
+        this.damping = 0.95;
+
+        // =====================
+        // 雙擊
+        // =====================
+
+        this.lastTap = 0;
+
+        // =====================
+        // touchstart
+        // =====================
+
+        window.addEventListener('touchstart', (e) => {
+
+          const now = Date.now();
+
+          // -----------------
+          // 雙擊重設
+          // -----------------
+
+          if (now - this.lastTap < 300) {
+
+            this.scale =
+              this.defaultScale;
+
+            el.object3D.scale.set(
+              this.scale,
+              this.scale,
+              this.scale
+            );
+
+            el.object3D.rotation.y =
+              this.defaultRotation;
+
+            this.rotationVelocity = 0;
+          }
+
+          this.lastTap = now;
+
+          // -----------------
+          // 單指旋轉
+          // -----------------
+
+          if (e.touches.length === 1) {
+
+            this.isDragging = true;
+
+            this.previousX =
+              e.touches[0].clientX;
+          }
+
+          // -----------------
+          // 雙指縮放
+          // -----------------
+
+          if (e.touches.length === 2) {
+
+            const dx =
+              e.touches[0].clientX -
+              e.touches[1].clientX;
+
+            const dy =
+              e.touches[0].clientY -
+              e.touches[1].clientY;
+
+            this.initialDistance =
+              Math.sqrt(dx * dx + dy * dy);
+          }
+
+        });
+
+        // =====================
+        // touchmove
+        // =====================
+
+        window.addEventListener('touchmove', (e) => {
+
+          // -----------------
+          // 單指旋轉
+          // -----------------
+
+          if (
+            e.touches.length === 1 &&
+            this.isDragging
+          ) {
+
+            const currentX =
+              e.touches[0].clientX;
+
+            const deltaX =
+              currentX - this.previousX;
+
+            // 慣性速度
+            this.rotationVelocity =
+              deltaX * 0.002;
+
+            // 即時旋轉
+            el.object3D.rotation.y +=
+              this.rotationVelocity;
+
+            // -----------------
+            // 限制角度
+            // -----------------
+
+            const limit =
+              THREE.MathUtils.degToRad(45);
+
+            el.object3D.rotation.y =
+              Math.max(
+                -limit,
+                Math.min(
+                  limit,
+                  el.object3D.rotation.y
+                )
+              );
+
+            this.previousX = currentX;
+          }
+
+          // -----------------
+          // 雙指縮放
+          // -----------------
+
+          if (
+            e.touches.length === 2 &&
+            this.initialDistance
+          ) {
+
+            const dx =
+              e.touches[0].clientX -
+              e.touches[1].clientX;
+
+            const dy =
+              e.touches[0].clientY -
+              e.touches[1].clientY;
+
+            const currentDistance =
+              Math.sqrt(dx * dx + dy * dy);
+
+            const scaleFactor =
+              currentDistance /
+              this.initialDistance;
+
+            this.scale *= scaleFactor;
+
+            // 限制縮放
+            this.scale =
+              Math.min(
+                Math.max(this.scale, 0.05),
+                3
+              );
+
+            el.object3D.scale.set(
+              this.scale,
+              this.scale,
+              this.scale
+            );
+
+            this.initialDistance =
+              currentDistance;
+          }
+
+        });
+
+        // =====================
+        // touchend
+        // =====================
+
+        window.addEventListener('touchend', () => {
+
+          this.isDragging = false;
+
+          this.initialDistance = null;
+
+        });
+
+      },
+
+      // =====================
+      // 每幀更新（慣性）
+      // =====================
+
+      tick: function () {
+
+        if (!this.isDragging) {
+
+          this.el.object3D.rotation.y +=
+            this.rotationVelocity;
+
+          // 阻尼
+          this.rotationVelocity *=
+            this.damping;
+
+          // 小速度停止
+          if (
+            Math.abs(this.rotationVelocity)
+            < 0.00001
+          ) {
+
+            this.rotationVelocity = 0;
+          }
+
+          // 再次限制角度
+          const limit =
+            THREE.MathUtils.degToRad(45);
+
+          this.el.object3D.rotation.y =
+            Math.max(
+              -limit,
+              Math.min(
+                limit,
+                this.el.object3D.rotation.y
+              )
+            );
+        }
+
+      }
+
+    });
+
+  </script>
+
+  <!-- ================================= -->
+  <!-- 點擊特效 -->
+  <!-- ================================= -->
+
+  <script>
+
+    AFRAME.registerComponent('click-effect', {
+
+      init: function () {
+
+        const el = this.el;
+
+        let model = null;
+
+        // =====================
+        // 取得 gltf mesh
+        // =====================
+
+        const gltfModel =
+          el.querySelector('a-gltf-model');
+
+        gltfModel.addEventListener(
+          'model-loaded',
+          () => {
+
+            model =
+              gltfModel.getObject3D('mesh');
+
+          }
+        );
+
+        // =====================
+        // 點擊判定
+        // =====================
+
+        let touchStartX = 0;
+
+        let touchStartY = 0;
+
+        window.addEventListener(
+          'touchstart',
+          (e) => {
+
+            if (e.touches.length !== 1)
+              return;
+
+            touchStartX =
+              e.touches[0].clientX;
+
+            touchStartY =
+              e.touches[0].clientY;
+
+          }
+        );
+
+        window.addEventListener(
+          'touchend',
+          (e) => {
+
+            // =================
+            // 防止拖曳誤判
+            // =================
+
+            const dx =
+              Math.abs(
+                (e.changedTouches[0].clientX || 0)
+                - touchStartX
+              );
+
+            const dy =
+              Math.abs(
+                (e.changedTouches[0].clientY || 0)
+                - touchStartY
+              );
+
+            if (dx > 10 || dy > 10)
+              return;
+
+            // =================
+            // 目前縮放
+            // =================
+
+            const current =
+              el.object3D.scale.x;
+
+            // =================
+            // 放大動畫
+            // =================
+
+            el.setAttribute(
+              'animation__pop',
+              {
+                property: 'scale',
+                to: `${current * 1.3}
+                     ${current * 1.3}
+                     ${current * 1.3}`,
+                dur: 120,
+                easing: 'easeOutQuad'
+              }
+            );
+
+            // =================
+            // 回彈動畫
+            // =================
+
+            setTimeout(() => {
+
+              el.setAttribute(
+                'animation__back',
+                {
+                  property: 'scale',
+                  to: `${current}
+                       ${current}
+                       ${current}`,
+                  dur: 180,
+                  easing: 'easeOutElastic'
+                }
+              );
+
+            }, 120);
+
+            // =================
+            // 發光特效
+            // =================
+
+            if (model) {
+
+              model.traverse((node) => {
+
+                if (
+                  node.isMesh &&
+                  node.material &&
+                  node.material.emissive
+                ) {
+
+                  node.material.emissive
+                    .set('#44AAFF');
+
+                  node.material.emissiveIntensity = 2;
+
+                  setTimeout(() => {
+
+                    node.material.emissive
+                      .set('#000000');
+
+                    node.material.emissiveIntensity = 0;
+
+                  }, 300);
+
+                }
+
+              });
+
+            }
+
+          }
+        );
+
+      }
+
+    });
+
+  </script>
+
+</body>
+
+</html>
